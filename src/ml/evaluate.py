@@ -19,6 +19,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import logging
 
+# Import EnsembleModel class so joblib can deserialize the model
+from src.ml.models import EnsembleModel
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 

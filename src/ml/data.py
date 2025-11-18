@@ -9,7 +9,7 @@ import numpy as np
 import yaml
 from pathlib import Path
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler, LabelEncoder
 from typing import Tuple, Dict, Any
 import logging
 
@@ -25,6 +25,7 @@ class FlightDataProcessor:
         self.config = self._load_config(config_path)
         self.scaler = None
         self.feature_names = None
+        self.label_encoders = {}  # Store encoders for each categorical column
 
     def _load_config(self, config_path: str) -> Dict[str, Any]:
         """Load configuration from YAML file."""
@@ -41,6 +42,11 @@ class FlightDataProcessor:
             df = pd.read_parquet(data_path)
         else:
             raise ValueError(f"Unsupported file format: {data_path}")
+
+        # Drop unnecessary columns
+        if 'Unnamed: 0' in df.columns:
+            df = df.drop(columns=['Unnamed: 0'])
+            logger.info("Dropped column: Unnamed: 0")
 
         logger.info(f"Loaded {len(df)} records with {len(df.columns)} columns")
         return df
@@ -59,13 +65,13 @@ class FlightDataProcessor:
         if 'duration_hours' in df.columns and 'price' in df.columns:
             df['price_per_hour'] = df['price'] / (df['duration_hours'] + 1)  # +1 to avoid division by zero
 
-        # Days left binning (booking urgency)
+        # Days left binning (booking urgency) - use numeric encoding directly
         if 'days_left' in df.columns:
             df['booking_urgency'] = pd.cut(
                 df['days_left'],
-                bins=[0, 7, 14, 30, 60, 100],
-                labels=['very_urgent', 'urgent', 'moderate', 'relaxed', 'very_relaxed']
-            )
+                bins=[0, 7, 14, 30, 60, float('inf')],
+                labels=[4, 3, 2, 1, 0]  # Higher number = more urgent
+            ).astype(float).fillna(0).astype(int)
 
         # Is weekend departure
         if 'departure_time' in df.columns:
@@ -113,29 +119,40 @@ class FlightDataProcessor:
             target = df[self.config['data']['target']]
             df = df.drop(columns=[self.config['data']['target']])
 
-        # Handle missing values
+        # Handle missing values for numerical features
         numerical_features = self.config['data']['features']['numerical']
         for col in numerical_features:
             if col in df.columns:
-                df[col].fillna(df[col].median(), inplace=True)
+                df[col] = df[col].fillna(df[col].median())
 
-        # Encode categorical features
-        categorical_features = self.config['data']['features']['categorical']
-        df_encoded = pd.get_dummies(
-            df,
-            columns=[col for col in categorical_features if col in df.columns],
-            drop_first=True
-        )
+        # Use LabelEncoder for ALL object/categorical columns (like the notebook)
+        for col in df.columns:
+            if df[col].dtype == 'object':
+                if fit:
+                    le = LabelEncoder()
+                    df[col] = le.fit_transform(df[col].astype(str))
+                    self.label_encoders[col] = le
+                    logger.info(f"Label encoded column: {col}")
+                else:
+                    if col in self.label_encoders:
+                        # Handle unseen labels by mapping to -1
+                        le = self.label_encoders[col]
+                        df[col] = df[col].astype(str).apply(
+                            lambda x: le.transform([x])[0] if x in le.classes_ else -1
+                        )
+                    else:
+                        logger.warning(f"No encoder found for column {col}, using 0")
+                        df[col] = 0
 
         # Store feature names for consistency
         if fit:
-            self.feature_names = df_encoded.columns.tolist()
+            self.feature_names = df.columns.tolist()
         else:
             # Ensure same features as training
-            missing_cols = set(self.feature_names) - set(df_encoded.columns)
+            missing_cols = set(self.feature_names) - set(df.columns)
             for col in missing_cols:
-                df_encoded[col] = 0
-            df_encoded = df_encoded[self.feature_names]
+                df[col] = 0
+            df = df[self.feature_names]
 
         # Scale numerical features
         if self.config['preprocessing']['scale_numerical']:
@@ -149,13 +166,13 @@ class FlightDataProcessor:
                 elif scaler_type == 'robust':
                     self.scaler = RobustScaler()
 
-                features = self.scaler.fit_transform(df_encoded)
+                features = self.scaler.fit_transform(df)
             else:
                 if self.scaler is None:
                     raise ValueError("Scaler not fitted. Call with fit=True first.")
-                features = self.scaler.transform(df_encoded)
+                features = self.scaler.transform(df)
         else:
-            features = df_encoded.values
+            features = df.values
 
         logger.info(f"Preprocessing complete. Feature shape: {features.shape}")
         return features, target

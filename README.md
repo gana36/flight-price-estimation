@@ -1,374 +1,263 @@
 # Flight Price Prediction - MLOps Project
 
-Production-ready MLOps pipeline for flight price prediction using ensemble models (Random Forest + XGBoost + LightGBM), fully compatible with AWS cloud infrastructure.
+Production-ready MLOps pipeline for flight price prediction using ensemble models, with complete AWS cloud deployment capability.
 
-## Features
+## Model Performance
 
-- **Ensemble Model**: Combines Random Forest, XGBoost, and LightGBM for robust predictions
-- **AWS Cloud Ready**: Complete integration with S3, RDS, ECR, and ECS
-- **MLOps Pipeline**: End-to-end ML pipeline with DVC for data versioning and MLflow for model tracking
-- **API Service**: FastAPI-based REST API with health checks and metrics
-- **Monitoring**: Prometheus metrics, Grafana dashboards, and Evidently drift detection
-- **CI/CD**: GitHub Actions pipeline for automated testing and deployment
-- **Zero-Downtime Deployment**: Hot-reload model updates without service restart
-- **Database Logging**: PostgreSQL-based prediction logging for monitoring and analysis
+| Metric | Value |
+|--------|-------|
+| R² Score | **0.9838** |
+| MAE | 1,559 INR |
+| RMSE | 2,891 INR |
+| MAPE | 12.07% |
 
-## Project Structure
+## Tech Stack
 
-```
-FlightPricePrediction/
-├── configs/                    # Configuration files
-│   ├── base.yaml              # Base configuration
-│   └── training.yaml          # Model hyperparameters
-├── data/
-│   ├── raw/                   # Raw data (gitignored)
-│   └── processed/             # Processed data (DVC-tracked)
-├── docker/                    # Docker configurations
-│   ├── Dockerfile.app         # API application container
-│   └── Dockerfile.mlflow      # MLflow server container
-├── infra/                     # Infrastructure configs
-│   ├── docker-compose.yaml    # Local development
-│   ├── prometheus/            # Prometheus configuration
-│   └── aws/                   # AWS ECS task definitions
-├── models/                    # Trained models (local backup)
-├── reports/                   # Evaluation and drift reports
-├── scripts/                   # Deployment scripts
-│   ├── promote_model.py       # Model promotion
-│   └── validate_model.py      # Model validation
-├── src/
-│   ├── app/                   # FastAPI application
-│   │   ├── api.py            # API endpoints
-│   │   └── metrics.py        # Prometheus metrics
-│   ├── database/              # Database models
-│   │   └── models.py         # SQLAlchemy ORM
-│   ├── ml/                    # ML pipeline
-│   │   ├── data.py           # Data preprocessing
-│   │   ├── train.py          # Model training
-│   │   └── evaluate.py       # Model evaluation
-│   └── monitoring/            # Monitoring tools
-│       └── drift_detection.py # Data drift monitoring
-├── tests/                     # Test suite
-│   ├── test_api.py           # API tests
-│   └── test_model.py         # Model tests
-├── .github/workflows/         # CI/CD pipelines
-├── dvc.yaml                   # DVC pipeline definition
-├── requirements.txt           # Python dependencies
-└── README.md                  # This file
-```
+![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)
+![AWS](https://img.shields.io/badge/AWS-232F3E?style=flat&logo=amazon-aws&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat&logo=postgresql&logoColor=white)
+![MLflow](https://img.shields.io/badge/MLflow-0194E2?style=flat&logo=mlflow&logoColor=white)
+![Grafana](https://img.shields.io/badge/Grafana-F46800?style=flat&logo=grafana&logoColor=white)
+![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=flat&logo=prometheus&logoColor=white)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?style=flat&logo=scikit-learn&logoColor=white)
+
+- **ML**: Random Forest + XGBoost + LightGBM (Ensemble)
+- **Pipeline**: DVC for data versioning, MLflow for experiment tracking
+- **API**: FastAPI with Prometheus metrics
+- **Infrastructure**: Docker, AWS ECS Fargate, ECR
+- **Monitoring**: Grafana, Prometheus, PostgreSQL logging
 
 ## Quick Start
 
-### Prerequisites
+### 1. Setup Environment
 
-- Python 3.11+
-- Docker and Docker Compose
-- Git
-- AWS CLI (for cloud deployment)
+```bash
+# Clone and setup
+git clone <your-repo-url>
+cd FlightPricePrediction
 
-### Local Development Setup
+# Create virtual environment
+python -m venv venv
+venv\Scripts\activate  # Windows
+# source venv/bin/activate  # Linux/Mac
 
-1. **Clone the repository**
-   ```bash
-   git clone <your-repo-url>
-   cd FlightPricePrediction
-   ```
+# Install dependencies
+pip install -r requirements.txt
 
-2. **Create virtual environment**
-   ```bash
-   python -m venv venv
+# Configure environment
+cp .env.example .env
+```
 
-   # On Windows
-   venv\Scripts\activate
+### 2. Start Local Services
 
-   # On Linux/Mac
-   source venv/bin/activate
-   ```
-
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Set up environment variables**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configurations
-   ```
-
-5. **Start services with Docker Compose**
-   ```bash
-   cd infra
-   docker-compose up --build -d
-   ```
-
-6. **Initialize database**
-   ```bash
-   python -m src.database.models
-   ```
-
-### Training the Model
-
-1. **Prepare data**
-   ```bash
-   python -m src.ml.data
-   ```
-
-2. **Train ensemble model**
-   ```bash
-   # Ensure MLflow is running
-   set MLFLOW_TRACKING_URI=http://localhost:5000
-   python -m src.ml.train
-   ```
-
-3. **Evaluate model**
-   ```bash
-   python -m src.ml.evaluate
-   ```
-
-4. **Validate and promote model**
-   ```bash
-   python scripts/validate_model.py --version 1
-   python scripts/promote_model.py --version 1 --alias production --reload-app
-   ```
-
-### Running the API
-
-**Option 1: Docker (Recommended)**
 ```bash
 cd infra
-docker-compose up app
+docker-compose up -d --build
 ```
 
-**Option 2: Local**
+This starts:
+- **PostgreSQL**: localhost:5432
+- **MLflow**: http://localhost:5000
+- **Prometheus**: http://localhost:9090
+- **Grafana**: http://localhost:3000 (admin/admin)
+
+### 3. Train Model
+
 ```bash
-uvicorn src.app.api:app --host 0.0.0.0 --port 8000 --reload
+# Using DVC pipeline (recommended)
+dvc repro
+
+# Or manually
+python -m src.ml.data      # Prepare data
+python -m src.ml.train     # Train model
+python -m src.ml.evaluate  # Evaluate
 ```
 
-Access the API:
-- API Documentation: http://localhost:8000/docs
-- Health Check: http://localhost:8000/health
-- Metrics: http://localhost:8000/metrics
-- MLflow UI: http://localhost:5000
-- Grafana: http://localhost:3000 (admin/admin)
-- Prometheus: http://localhost:9090
-
-### Making Predictions
+### 4. Promote to Production
 
 ```bash
-curl -X POST "http://localhost:8000/predict" \
+python scripts/promote_model.py --version 1 --alias production
+```
+
+### 5. Test API
+
+```bash
+# Health check
+curl http://localhost:8000/health
+
+# Make prediction
+curl -X POST http://localhost:8000/predict \
   -H "Content-Type: application/json" \
   -d '{
-    "airline": "SpiceJet",
+    "airline": "Vistara",
+    "flight": "UK-123",
     "source_city": "Delhi",
-    "destination_city": "Mumbai",
-    "departure_time": "Evening",
-    "arrival_time": "Night",
+    "departure_time": "Morning",
     "stops": "zero",
+    "arrival_time": "Afternoon",
+    "destination_city": "Mumbai",
     "class": "Economy",
-    "duration": 2.17,
-    "days_left": 1
+    "duration": 2.5,
+    "days_left": 15
   }'
 ```
+
+**API Documentation**: http://localhost:8000/docs
 
 ## AWS Deployment
 
 ### Prerequisites
 
-1. **AWS Account Setup**
-   - Create S3 buckets for DVC and MLflow artifacts
-   - Set up RDS PostgreSQL for MLflow backend and predictions
-   - Create ECR repositories for Docker images
-   - Configure ECS cluster
+- AWS CLI configured (`aws configure`)
+- Docker installed
 
-2. **Configure AWS Credentials**
-   ```bash
-   aws configure
-   ```
+### Deploy to ECS Fargate
 
-3. **Set up Secrets Manager**
-   Store sensitive credentials in AWS Secrets Manager:
-   - Database connection strings
-   - MLflow URIs
-   - API keys
+```bash
+# 1. Create AWS resources
+aws ecr create-repository --repository-name flightprice-app --region us-east-1
+aws ecs create-cluster --cluster-name flightprice-cluster --region us-east-1
+aws s3 mb s3://flightprice-mlops-<account-id> --region us-east-1
 
-### Deployment Steps
+# 2. Build and push Docker image
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <account-id>.dkr.ecr.us-east-1.amazonaws.com
 
-1. **Push Docker images to ECR**
-   ```bash
-   # Login to ECR
-   aws ecr get-login-password --region us-east-1 | \
-     docker login --username AWS --password-stdin <account-id>.dkr.ecr.us-east-1.amazonaws.com
+docker build -t flightprice-app:latest -f docker/Dockerfile.app .
+docker tag flightprice-app:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/flightprice-app:latest
+docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/flightprice-app:latest
 
-   # Build and push app image
-   docker build -f docker/Dockerfile.app -t <account-id>.dkr.ecr.us-east-1.amazonaws.com/flightprice-app:latest .
-   docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/flightprice-app:latest
+# 3. Create IAM role for ECS
+aws iam create-role --role-name ecsTaskExecutionRole --assume-role-policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ecs-tasks.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
+aws iam attach-role-policy --role-name ecsTaskExecutionRole --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
 
-   # Build and push MLflow image
-   docker build -f docker/Dockerfile.mlflow -t <account-id>.dkr.ecr.us-east-1.amazonaws.com/flightprice-mlflow:latest .
-   docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/flightprice-mlflow:latest
-   ```
+# 4. Register task definition and create service
+aws ecs register-task-definition --cli-input-json file://infra/aws/ecs-task-definition-app-simple.json --region us-east-1
+aws ecs create-service --cluster flightprice-cluster --service-name flightprice-app-service --task-definition flightprice-app-task --desired-count 1 --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[<subnet-id>],securityGroups=[<sg-id>],assignPublicIp=ENABLED}" --region us-east-1
+```
 
-2. **Update ECS task definitions**
-   ```bash
-   # Update placeholders in task definitions
-   cd infra/aws
-   # Edit ecs-task-definition-app.json and ecs-task-definition-mlflow.json
+### Cleanup AWS Resources
 
-   # Register task definitions
-   aws ecs register-task-definition --cli-input-json file://ecs-task-definition-app.json
-   aws ecs register-task-definition --cli-input-json file://ecs-task-definition-mlflow.json
-   ```
+```bash
+aws ecs update-service --cluster flightprice-cluster --service flightprice-app-service --desired-count 0 --region us-east-1
+aws ecs delete-service --cluster flightprice-cluster --service flightprice-app-service --region us-east-1
+aws ecs delete-cluster --cluster flightprice-cluster --region us-east-1
+aws ecr delete-repository --repository-name flightprice-app --force --region us-east-1
+```
 
-3. **Deploy to ECS**
-   ```bash
-   aws ecs update-service \
-     --cluster flightprice-cluster \
-     --service flightprice-app-service \
-     --task-definition flightprice-app-task \
-     --force-new-deployment
-   ```
+## Project Structure
 
-4. **Configure DVC with S3**
-   ```bash
-   dvc remote modify s3remote access_key_id <your-access-key>
-   dvc remote modify s3remote secret_access_key <your-secret-key>
-   dvc push
-   ```
+```
+FlightPricePrediction/
+├── configs/                    # YAML configurations
+│   ├── base.yaml              # Data & evaluation settings
+│   └── training.yaml          # Model hyperparameters
+├── docker/                    # Dockerfiles
+├── infra/                     # Infrastructure
+│   ├── docker-compose.yaml    # Local development
+│   └── aws/                   # ECS task definitions
+├── src/
+│   ├── app/api.py            # FastAPI endpoints
+│   ├── ml/
+│   │   ├── data.py           # Data preprocessing
+│   │   ├── models.py         # EnsembleModel class
+│   │   ├── train.py          # Training pipeline
+│   │   └── evaluate.py       # Model evaluation
+│   ├── database/models.py    # SQLAlchemy ORM
+│   └── monitoring/           # Drift detection
+├── scripts/                   # Deployment scripts
+├── tests/                     # Pytest suite
+├── dvc.yaml                   # DVC pipeline
+└── requirements.txt
+```
+
+## API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check |
+| `/predict` | POST | Make prediction |
+| `/model_info` | GET | Current model info |
+| `/reload` | POST | Hot-reload model |
+| `/metrics` | GET | Prometheus metrics |
+| `/docs` | GET | Swagger UI |
 
 ## Configuration
 
-### Base Configuration (`configs/base.yaml`)
+### Model Weights (configs/training.yaml)
 
-Controls data processing, evaluation thresholds, and MLflow settings.
+```yaml
+ensemble:
+  weights:
+    random_forest: 0.35
+    xgboost: 0.40
+    lightgbm: 0.25
+```
 
-Key parameters:
-- `data.test_size`: Train/test split ratio (default: 0.2)
-- `evaluation.thresholds.min_r2`: Minimum R² score for model validation (default: 0.75)
-- `evaluation.thresholds.max_rmse`: Maximum RMSE for model validation (default: 5000)
+### Evaluation Thresholds (configs/base.yaml)
 
-### Training Configuration (`configs/training.yaml`)
-
-Controls ensemble model hyperparameters.
-
-Key parameters:
-- `ensemble.weights`: Model weights for ensemble (RF: 0.35, XGB: 0.40, LGB: 0.25)
-- `models.*`: Individual model hyperparameters
+```yaml
+evaluation:
+  thresholds:
+    min_r2: 0.75
+    max_rmse: 5000
+    max_mape: 0.15
+```
 
 ## Monitoring
 
+### Prometheus Metrics
+
+- `app_request_count` - Request counter by endpoint
+- `app_prediction_count` - Total predictions
+- `app_prediction_value` - Price distribution
+- `app_prediction_latency_ms` - Inference latency
+
 ### Data Drift Detection
 
-Monitor production data drift:
 ```bash
 python -m src.monitoring.drift_detection --hours 24
 ```
 
 Generates HTML reports in `reports/` directory.
 
-### Metrics
-
-Prometheus metrics available at `/metrics`:
-- `app_request_count`: Request counter by endpoint
-- `app_request_latency_seconds`: Request latency histogram
-- `app_prediction_count`: Prediction counter
-- `app_prediction_value`: Predicted price distribution
-- `app_prediction_latency_ms`: Prediction latency
-
 ## Testing
 
-Run all tests:
 ```bash
+# Run all tests
 pytest -v
-```
 
-Run specific test suites:
-```bash
-pytest tests/test_api.py -v
-pytest tests/test_model.py -v
-```
-
-With coverage:
-```bash
+# With coverage
 pytest --cov=src --cov-report=html
 ```
 
-## CI/CD Pipeline
+## CI/CD
 
 GitHub Actions workflow (`.github/workflows/ci-cd.yaml`):
+1. **Test** - Run pytest suite
+2. **Lint** - Code quality (black, ruff)
+3. **Build** - Docker image to ECR
+4. **Deploy** - Update ECS service
 
-1. **Test**: Run pytest suite
-2. **Lint**: Code quality checks (black, ruff, isort)
-3. **Build**: Build and push Docker images to ECR
-4. **Deploy**: Update ECS services
+## Cost Estimates (AWS)
 
-Triggers:
-- Push to `main` or `develop`
-- Pull requests to `main`
-
-## Model Promotion Workflow
-
-1. **Train model**
-   ```bash
-   python -m src.ml.train
-   ```
-
-2. **Validate model**
-   ```bash
-   python scripts/validate_model.py --version <version-number>
-   ```
-
-3. **Promote to production**
-   ```bash
-   python scripts/promote_model.py --version <version-number> --alias production --reload-app
-   ```
-
-4. **Verify deployment**
-   ```bash
-   curl http://localhost:8000/model_info
-   ```
+| Service | Monthly Cost |
+|---------|-------------|
+| ECS Fargate (0.5 vCPU, 1GB) | ~$15 |
+| ECR Storage | ~$1 |
+| S3 Storage | ~$1 |
+| CloudWatch Logs | ~$1 |
+| **Total** | **~$18/month** |
 
 ## Troubleshooting
 
-### Model not loading in API
-- Check MLflow server is running: `http://localhost:5000`
-- Verify model is registered in MLflow
-- Check logs: `docker logs flightprice-app`
+**Model not loading**: Check MLflow is running at http://localhost:5000
 
-### Database connection errors
-- Ensure PostgreSQL is running: `docker ps`
-- Verify DATABASE_URL in `.env`
-- Check database exists: `psql -U postgres -l`
+**Database errors**: Verify PostgreSQL container is healthy with `docker ps`
 
-### Prediction errors
-- Validate input features match training data
-- Check model compatibility
-- Review API logs for detailed error messages
+**API errors**: Check logs with `docker logs flightprice-app`
 
-## API Endpoints
+## License
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/` | GET | API information |
-| `/health` | GET | Health check |
-| `/predict` | POST | Make prediction |
-| `/model_info` | GET | Current model information |
-| `/reload` | POST | Reload model (zero-downtime) |
-| `/metrics` | GET | Prometheus metrics |
-| `/docs` | GET | API documentation (Swagger UI) |
-
-## Environment Variables
-
-See `.env.example` for complete list of environment variables.
-
-Key variables:
-- `MLFLOW_TRACKING_URI`: MLflow server URL
-- `DATABASE_URL`: PostgreSQL connection string
-- `AWS_REGION`: AWS region for S3/ECR/ECS
-- `MODEL_ALIAS`: Model alias to load (default: production)
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make changes and add tests
-4. Submit a pull request
+MIT License

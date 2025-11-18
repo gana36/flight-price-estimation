@@ -1,0 +1,149 @@
+schema: '2.0'
+stages:
+  prepare:
+    cmd: python -m src.ml.data
+    deps:
+    - path: Clean_Dataset.csv
+      hash: md5
+      md5: e4390a3a94f41b7ea2c129640d3a24b6
+      size: 24683279
+    - path: src/ml/data.py
+      hash: md5
+      md5: f0be19c9a871f1f61415d04322d50970
+      size: 9301
+    params:
+      configs/base.yaml:
+        data:
+          test_size: 0.2
+          random_state: 42
+          validation_size: 0.1
+          features:
+            categorical:
+            - airline
+            - source_city
+            - destination_city
+            - departure_time
+            - arrival_time
+            - stops
+            - class
+            numerical:
+            - duration
+            - days_left
+          target: price
+        preprocessing:
+          fill_missing: median
+          scale_numerical: true
+          scaler: standard
+          categorical_encoding: onehot
+    outs:
+    - path: data/processed/current.parquet
+      hash: md5
+      md5: d92f8884a8a44014df6b613d56185598
+      size: 11317
+    - path: data/processed/reference.parquet
+      hash: md5
+      md5: 7930fe739dd875f65e1e7a4b6a9b03cc
+      size: 24651
+    - path: data/processed/test.parquet
+      hash: md5
+      md5: 8fa0d01ba967dafe2559fedafbc474e7
+      size: 498429
+    - path: data/processed/train.parquet
+      hash: md5
+      md5: f6b08b58dc1896485b57a39e6c451d80
+      size: 1876754
+  train:
+    cmd: python -m src.ml.train
+    deps:
+    - path: configs/base.yaml
+      hash: md5
+      md5: 327b803e1372be87a1f5f678f2f6b369
+      size: 1242
+    - path: configs/training.yaml
+      hash: md5
+      md5: 6035fe279636b6401b0d9925f763c1c5
+      size: 1570
+    - path: data/processed/test.parquet
+      hash: md5
+      md5: 8fa0d01ba967dafe2559fedafbc474e7
+      size: 498429
+    - path: data/processed/train.parquet
+      hash: md5
+      md5: f6b08b58dc1896485b57a39e6c451d80
+      size: 1876754
+    - path: src/ml/train.py
+      hash: md5
+      md5: 1db50d3cb7e7b84b9280f04556b99ac8
+      size: 8859
+    params:
+      configs/training.yaml:
+        ensemble:
+          strategy: weighted_average
+          weights:
+            random_forest: 0.35
+            xgboost: 0.4
+            lightgbm: 0.25
+        models:
+          random_forest:
+            n_estimators: 200
+            max_depth: 15
+            min_samples_split: 5
+            min_samples_leaf: 2
+            max_features: sqrt
+            random_state: 42
+            n_jobs: -1
+            verbose: 0
+          xgboost:
+            n_estimators: 200
+            max_depth: 8
+            learning_rate: 0.1
+            subsample: 0.8
+            colsample_bytree: 0.8
+            min_child_weight: 3
+            gamma: 0.1
+            reg_alpha: 0.1
+            reg_lambda: 1.0
+            random_state: 42
+            n_jobs: -1
+            verbosity: 0
+          lightgbm:
+            n_estimators: 200
+            max_depth: 10
+            learning_rate: 0.1
+            subsample: 0.8
+            colsample_bytree: 0.8
+            min_child_samples: 20
+            reg_alpha: 0.1
+            reg_lambda: 1.0
+            random_state: 42
+            n_jobs: -1
+            verbose: -1
+    outs:
+    - path: models/latest.joblib
+      hash: md5
+      md5: 0606f2f072261d329b06c7f3807a1642
+      size: 238367744
+  evaluate:
+    cmd: python -m src.ml.evaluate
+    deps:
+    - path: configs/base.yaml
+      hash: md5
+      md5: 327b803e1372be87a1f5f678f2f6b369
+      size: 1242
+    - path: data/processed/test.parquet
+      hash: md5
+      md5: 8fa0d01ba967dafe2559fedafbc474e7
+      size: 498429
+    - path: models/latest.joblib
+      hash: md5
+      md5: 0606f2f072261d329b06c7f3807a1642
+      size: 238367744
+    - path: src/ml/evaluate.py
+      hash: md5
+      md5: 6851b22e11a670375d7d40c1a4e137bb
+      size: 3414
+    outs:
+    - path: reports/evaluation_metrics.csv
+      hash: md5
+      md5: d81f9e565e2a2c4b64986b91e5926c1b
+      size: 100

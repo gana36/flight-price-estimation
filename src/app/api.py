@@ -32,6 +32,7 @@ from src.app.metrics import (
     PREDICTION_LATENCY
 )
 from src.database.models import Prediction, get_session
+from src.ml.models import EnsembleModel  # Import for joblib deserialization
 
 import logging
 

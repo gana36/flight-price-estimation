@@ -1,0 +1,63 @@
+{
+  "family": "flightprice-app-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::307946674899:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::307946674899:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "flightprice-app",
+      "image": "307946674899.dkr.ecr.us-east-1.amazonaws.com/flightprice-app:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "APP_HOST",
+          "value": "0.0.0.0"
+        },
+        {
+          "name": "APP_PORT",
+          "value": "8000"
+        },
+        {
+          "name": "MODEL_ALIAS",
+          "value": "production"
+        },
+        {
+          "name": "MLFLOW_TRACKING_URI",
+          "value": "http://localhost:5000"
+        },
+        {
+          "name": "MLFLOW_REGISTERED_MODEL_NAME",
+          "value": "FlightPricePredictor"
+        },
+        {
+          "name": "AWS_DEFAULT_REGION",
+          "value": "us-east-1"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/flightprice-app",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "app"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      }
+    }
+  ]
+}
