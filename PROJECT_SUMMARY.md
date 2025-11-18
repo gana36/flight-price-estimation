@@ -2,400 +2,201 @@
 
 ## Overview
 
-A production-ready MLOps pipeline for flight price prediction using ensemble machine learning models, fully compatible with AWS cloud infrastructure.
+A production-ready MLOps pipeline for Indian domestic flight price prediction using ensemble machine learning models, deployed on AWS ECS Fargate.
 
-## What We've Built
+## Model Results
 
-### 🎯 Core Features
+| Metric | Value |
+|--------|-------|
+| **R² Score** | 0.9838 |
+| **MAE** | 1,559 INR |
+| **RMSE** | 2,891 INR |
+| **MAPE** | 12.07% |
+| **Dataset** | 300,153 records |
 
-1. **Ensemble Model Architecture**
-   - Random Forest (35% weight)
-   - XGBoost (40% weight)
-   - LightGBM (25% weight)
-   - Weighted averaging for final predictions
+## Architecture
 
-2. **REST API Service**
-   - FastAPI-based microservice
-   - Health checks and readiness probes
-   - Prometheus metrics export
-   - Zero-downtime model updates
-   - Automatic prediction logging
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   DVC       │────▶│   MLflow    │────▶│   FastAPI   │
+│  (Data)     │     │  (Models)   │     │   (API)     │
+└─────────────┘     └─────────────┘     └─────────────┘
+       │                   │                   │
+       ▼                   ▼                   ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│     S3      │     │  PostgreSQL │     │ Prometheus  │
+│  (Storage)  │     │  (Logging)  │     │  (Metrics)  │
+└─────────────┘     └─────────────┘     └─────────────┘
+```
 
-3. **MLOps Pipeline**
-   - DVC for data versioning (S3-compatible)
-   - MLflow for experiment tracking and model registry
-   - Automated training pipeline
-   - Model validation and promotion scripts
+## What Was Built
 
-4. **Monitoring & Observability**
-   - Prometheus metrics collection
-   - Grafana dashboards
-   - Evidently AI drift detection
-   - PostgreSQL prediction logging
-   - CloudWatch integration (AWS)
+### Machine Learning
+- **Ensemble Model**: Random Forest (35%) + XGBoost (40%) + LightGBM (25%)
+- **Features**: 12 features including airline, route, time, class, duration
+- **Preprocessing**: LabelEncoder for categoricals, StandardScaler for numericals
 
-5. **Infrastructure as Code**
-   - Docker containerization
-   - Docker Compose for local development
-   - ECS Fargate task definitions
-   - Terraform-ready configurations
+### API Service
+- FastAPI REST endpoints
+- Health checks for ECS
+- Prometheus metrics export
+- Zero-downtime model reloading
+- Swagger documentation
 
-6. **CI/CD Pipeline**
-   - GitHub Actions workflows
-   - Automated testing
-   - Code quality checks (black, ruff, isort)
-   - ECR image builds
-   - ECS deployment automation
+### Infrastructure
+- Docker containers for all services
+- Docker Compose for local development
+- AWS ECS Fargate deployment
+- ECR for image registry
 
-## 📁 Project Structure
+### Monitoring
+- Prometheus metrics collection
+- Grafana dashboards
+- PostgreSQL prediction logging
+- Data drift detection with Evidently
+
+### CI/CD
+- GitHub Actions workflow
+- Automated testing with pytest
+- Docker build and push to ECR
+- ECS service deployment
+
+## Project Structure
 
 ```
 FlightPricePrediction/
-├── configs/                        # Configuration files
-│   ├── base.yaml                  # Data & evaluation config
-│   └── training.yaml              # Model hyperparameters
-│
-├── data/
-│   ├── raw/                       # Raw data (gitignored)
-│   └── processed/                 # Processed data (DVC-tracked)
-│
-├── docker/                        # Docker configurations
-│   ├── Dockerfile.app             # API container
-│   └── Dockerfile.mlflow          # MLflow container
-│
-├── infra/                         # Infrastructure configs
-│   ├── docker-compose.yaml        # Local development
-│   ├── prometheus/                # Prometheus config
-│   └── aws/                       # AWS ECS task definitions
-│
-├── src/                           # Source code
-│   ├── app/                       # FastAPI application
-│   │   ├── api.py                # API endpoints
-│   │   └── metrics.py            # Prometheus metrics
-│   │
-│   ├── database/                  # Database layer
-│   │   └── models.py             # SQLAlchemy ORM
-│   │
-│   ├── ml/                        # ML pipeline
-│   │   ├── data.py               # Data preprocessing
-│   │   ├── train.py              # Ensemble training
-│   │   └── evaluate.py           # Model evaluation
-│   │
-│   └── monitoring/                # Monitoring tools
-│       └── drift_detection.py    # Data drift detection
-│
-├── scripts/                       # Deployment scripts
-│   ├── promote_model.py          # Model promotion
-│   └── validate_model.py         # Model validation
-│
-├── tests/                         # Test suite
-│   ├── test_api.py               # API tests
-│   └── test_model.py             # Model tests
-│
-├── .github/workflows/             # CI/CD pipelines
-│   └── ci-cd.yaml                # GitHub Actions
-│
-├── dvc.yaml                       # DVC pipeline definition
-├── requirements.txt               # Python dependencies
-├── .env.example                   # Environment template
-├── .gitignore                     # Git ignore rules
-├── .dockerignore                  # Docker ignore rules
-├── pytest.ini                     # Test configuration
-├── setup.py                       # Setup automation script
-│
-├── README.md                      # Full documentation
-├── QUICKSTART.md                  # 10-minute quick start
-├── AWS_SETUP_GUIDE.md            # AWS deployment guide
-└── PROJECT_SUMMARY.md            # This file
+├── configs/                    # YAML configurations
+│   ├── base.yaml              # Data & evaluation settings
+│   └── training.yaml          # Model hyperparameters
+├── docker/                    # Dockerfiles
+│   ├── Dockerfile.app         # FastAPI container
+│   └── Dockerfile.mlflow      # MLflow container
+├── infra/                     # Infrastructure
+│   ├── docker-compose.yaml    # Local services
+│   ├── prometheus/            # Prometheus config
+│   └── aws/                   # ECS task definitions
+├── src/
+│   ├── app/
+│   │   ├── api.py            # FastAPI endpoints
+│   │   └── metrics.py        # Prometheus metrics
+│   ├── database/
+│   │   └── models.py         # SQLAlchemy ORM
+│   ├── ml/
+│   │   ├── data.py           # Data preprocessing
+│   │   ├── models.py         # EnsembleModel class
+│   │   ├── train.py          # Training pipeline
+│   │   └── evaluate.py       # Model evaluation
+│   └── monitoring/
+│       └── drift_detection.py
+├── scripts/
+│   ├── promote_model.py       # Model promotion
+│   └── validate_model.py      # Model validation
+├── tests/
+│   ├── test_api.py
+│   └── test_model.py
+├── dvc.yaml                   # DVC pipeline
+├── requirements.txt
+└── .github/workflows/ci-cd.yaml
 ```
 
-## 🔧 Technology Stack
+## Technology Stack
 
-### Machine Learning
-- **scikit-learn**: Random Forest
-- **XGBoost**: Gradient boosting
-- **LightGBM**: Gradient boosting
-- **pandas/numpy**: Data manipulation
+| Category | Technologies |
+|----------|-------------|
+| **ML** | scikit-learn, XGBoost, LightGBM, pandas, numpy |
+| **MLOps** | MLflow, DVC, Evidently |
+| **API** | FastAPI, Uvicorn, Pydantic |
+| **Database** | PostgreSQL, SQLAlchemy |
+| **Monitoring** | Prometheus, Grafana |
+| **Infrastructure** | Docker, AWS ECS Fargate, ECR, S3 |
+| **CI/CD** | GitHub Actions |
+| **Testing** | pytest, black, ruff |
 
-### MLOps
-- **MLflow**: Experiment tracking, model registry
-- **DVC**: Data version control
-- **Evidently**: Data drift detection
-
-### API & Web
-- **FastAPI**: REST API framework
-- **Uvicorn**: ASGI server
-- **Pydantic**: Data validation
-
-### Database
-- **PostgreSQL**: Prediction logging
-- **SQLAlchemy**: ORM
-
-### Monitoring
-- **Prometheus**: Metrics collection
-- **Grafana**: Visualization dashboards
-
-### Infrastructure
-- **Docker**: Containerization
-- **Docker Compose**: Local orchestration
-- **AWS ECS Fargate**: Container orchestration
-- **AWS S3**: Data & artifact storage
-- **AWS RDS**: Managed PostgreSQL
-- **AWS ECR**: Container registry
-- **AWS CloudWatch**: Logging
-
-### Testing & Quality
-- **pytest**: Testing framework
-- **black**: Code formatting
-- **ruff**: Linting
-- **isort**: Import sorting
-
-### CI/CD
-- **GitHub Actions**: Automation pipelines
-
-## 🚀 Key Workflows
-
-### 1. Data Pipeline
-```
-Raw Data → DVC Track → Preprocessing → Train/Test Split → DVC Push to S3
-```
-
-### 2. Training Pipeline
-```
-Load Data → Feature Engineering → Train Ensemble → Evaluate →
-Log to MLflow → Register Model → Validate → Promote
-```
-
-### 3. Deployment Pipeline
-```
-Code Push → GitHub Actions → Tests → Build Docker → Push to ECR →
-Deploy to ECS → Health Check → Live
-```
-
-### 4. Prediction Pipeline
-```
-API Request → Load Model → Preprocess → Predict →
-Log to DB → Export Metrics → Return Response
-```
-
-### 5. Monitoring Pipeline
-```
-Predictions → Database → Drift Detection → Alert/Report →
-Prometheus → Grafana Dashboard
-```
-
-## 📊 API Endpoints
+## API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/` | GET | API information |
-| `/health` | GET | Health check |
-| `/predict` | POST | Make flight price prediction |
+| `/health` | GET | Health check for ECS |
+| `/predict` | POST | Make prediction |
 | `/model_info` | GET | Current model metadata |
-| `/reload` | POST | Hot-reload model (zero-downtime) |
+| `/reload` | POST | Hot-reload model |
 | `/metrics` | GET | Prometheus metrics |
-| `/docs` | GET | Interactive API documentation |
+| `/docs` | GET | Swagger UI |
 
-## 🎯 AWS Cloud Features
+## Workflows
 
-### Fully AWS-Compatible
-- ✅ S3 for DVC data versioning
-- ✅ S3 for MLflow artifacts
-- ✅ RDS PostgreSQL for MLflow backend
-- ✅ RDS PostgreSQL for predictions
-- ✅ ECR for Docker images
-- ✅ ECS Fargate for container orchestration
-- ✅ CloudWatch for logging
-- ✅ Secrets Manager for credentials
-- ✅ ALB for load balancing
-- ✅ Auto-scaling configurations
+### Training Pipeline
+```bash
+dvc repro  # Runs: prepare → train → evaluate
+```
 
-### Cost-Optimized Design
-- Fargate Spot support
-- S3 lifecycle policies
-- RDS backup retention
-- CloudWatch log retention
-- Reserved capacity options
+### Model Promotion
+```bash
+python scripts/promote_model.py --version 1 --alias production
+```
 
-## 🧪 Testing Strategy
+### Local Deployment
+```bash
+cd infra && docker-compose up -d --build
+```
 
-### Unit Tests
-- API endpoint tests
-- Model prediction tests
-- Configuration validation tests
+### AWS Deployment
+```bash
+docker build -t flightprice-app -f docker/Dockerfile.app .
+docker tag flightprice-app <account>.dkr.ecr.us-east-1.amazonaws.com/flightprice-app:latest
+docker push <account>.dkr.ecr.us-east-1.amazonaws.com/flightprice-app:latest
+aws ecs update-service --cluster flightprice-cluster --service flightprice-app-service --force-new-deployment
+```
 
-### Integration Tests
-- Full prediction pipeline
-- Database operations
-- MLflow integration
+## Cost Estimates (AWS)
 
-### Performance Tests
-- Model validation thresholds
-- API latency checks
-- Concurrent request handling
+| Service | Monthly Cost |
+|---------|-------------|
+| ECS Fargate (0.5 vCPU, 1GB) | ~$15 |
+| ECR Storage | ~$1 |
+| S3 Storage | ~$1 |
+| CloudWatch Logs | ~$1 |
+| **Total** | **~$18/month** |
 
-### Code Quality
-- Black formatting
-- Ruff linting
-- Import sorting with isort
-- Type checking with mypy
+## Key Design Decisions
 
-## 📈 Monitoring & Metrics
+1. **Ensemble over Single Model** - Better generalization (R² = 0.98)
+2. **LabelEncoder over OneHotEncoder** - Reduces feature dimensionality
+3. **MLflow Aliases** - Modern approach for model promotion
+4. **DVC for Data** - Version control for large datasets
+5. **FastAPI over Flask** - Better performance, auto-docs
+6. **Fargate over EC2** - Serverless, managed scaling
+7. **PostgreSQL** - ACID compliance for prediction logging
 
-### Application Metrics
-- Request count by endpoint
-- Request latency (P50, P95, P99)
-- Prediction count
-- Prediction value distribution
-- Error rates
+## Local Services
 
-### Model Metrics
-- MAE, RMSE, R², MAPE
-- Feature importance
-- Training time
-- Model size
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| FastAPI | http://localhost:8000/docs | - |
+| MLflow | http://localhost:5000 | - |
+| Grafana | http://localhost:3000 | admin/admin |
+| Prometheus | http://localhost:9090 | - |
+| PostgreSQL | localhost:5432 | postgres/postgres |
 
-### Data Quality Metrics
-- Data drift detection
-- Feature distribution changes
-- Missing value rates
-- Outlier detection
+## Files Created
 
-## 🔐 Security Features
+- **Source Code**: 10 Python modules
+- **Configurations**: 2 YAML configs + .env
+- **Docker**: 2 Dockerfiles + docker-compose
+- **Infrastructure**: ECS task definitions, Prometheus config
+- **Documentation**: README, QUICKSTART, AWS_SETUP_GUIDE
+- **CI/CD**: GitHub Actions workflow
+- **Tests**: API and model tests
 
-- AWS Secrets Manager integration
-- Database credential encryption
-- HTTPS/TLS support
-- CORS configuration
-- API rate limiting (configurable)
-- Network isolation in AWS VPC
+## Next Steps
 
-## 🎓 Key Design Decisions
-
-1. **Ensemble over Single Model**: Better generalization and robustness
-2. **MLflow Aliases over Stages**: Modern, flexible model promotion
-3. **DVC for Data**: Version control large datasets efficiently
-4. **FastAPI over Flask**: Better performance, auto-documentation
-5. **Fargate over EC2**: Serverless, auto-scaling, managed
-6. **PostgreSQL over NoSQL**: ACID compliance for predictions
-7. **Docker Compose**: Consistent local development
-8. **GitHub Actions**: Native CI/CD integration
-
-## 📝 Configuration Files
-
-### Base Config (configs/base.yaml)
-- Data processing parameters
-- Train/test split settings
-- Evaluation thresholds
-- MLflow configuration
-
-### Training Config (configs/training.yaml)
-- Model hyperparameters
-- Ensemble weights
-- Tuning settings (optional)
-
-### Environment Variables (.env)
-- AWS credentials
-- Database URLs
-- MLflow URIs
-- Service ports
-
-## 🔄 Model Promotion Workflow
-
-1. **Train**: `python -m src.ml.train`
-2. **Validate**: `python scripts/validate_model.py --version N`
-3. **Promote**: `python scripts/promote_model.py --version N --alias production`
-4. **Verify**: Check `/model_info` endpoint
-
-## 📦 Deliverables
-
-### Code
-- ✅ Complete source code
-- ✅ Configuration files
-- ✅ Docker configurations
-- ✅ Infrastructure definitions
-
-### Documentation
-- ✅ README.md (comprehensive)
-- ✅ QUICKSTART.md (10-minute setup)
-- ✅ AWS_SETUP_GUIDE.md (cloud deployment)
-- ✅ PROJECT_SUMMARY.md (this file)
-
-### Scripts
-- ✅ Model promotion script
-- ✅ Model validation script
-- ✅ Setup automation script
-- ✅ Training pipeline
-- ✅ Evaluation pipeline
-
-### Infrastructure
-- ✅ Dockerfile.app
-- ✅ Dockerfile.mlflow
-- ✅ docker-compose.yaml
-- ✅ ECS task definitions
-- ✅ Prometheus config
-- ✅ GitHub Actions workflows
-
-### Testing
-- ✅ API tests
-- ✅ Model tests
-- ✅ Pytest configuration
-- ✅ CI/CD pipeline
-
-## 🎯 Next Steps (Your Workflow)
-
-1. **Immediate**
-   - Review and adjust configurations
-   - Run setup.py to initialize project
-   - Test local deployment with Docker Compose
-   - Train initial model
-
-2. **Short-term**
-   - Set up AWS infrastructure (follow AWS_SETUP_GUIDE.md)
-   - Configure GitHub secrets for CI/CD
-   - Deploy to AWS ECS
-   - Set up monitoring dashboards
-
-3. **Ongoing**
-   - Monitor model performance
-   - Retrain with new data
-   - Update hyperparameters
-   - Scale based on traffic
-
-## 💡 Tips & Best Practices
-
-1. **Always validate** models before promotion
-2. **Monitor drift** regularly (weekly recommended)
-3. **Use DVC** for all data changes
-4. **Tag MLflow runs** with meaningful names
-5. **Test in staging** before production deployment
-6. **Keep secrets** in AWS Secrets Manager
-7. **Review logs** in CloudWatch regularly
-8. **Set up alerts** for critical metrics
-
-## 📞 Support Resources
-
-- README.md: Full technical documentation
-- QUICKSTART.md: Get started in 10 minutes
-- AWS_SETUP_GUIDE.md: Complete AWS deployment walkthrough
-- API Docs: http://localhost:8000/docs (when running)
-- MLflow UI: http://localhost:5000 (when running)
-
-## 🏆 Project Highlights
-
-✨ **Production-Ready**: Not just a POC, ready for real deployment
-✨ **AWS-Native**: Full cloud integration with best practices
-✨ **MLOps Best Practices**: Version control for data, models, and code
-✨ **Zero-Downtime Updates**: Hot-reload models without service restart
-✨ **Comprehensive Monitoring**: Full observability stack included
-✨ **Automated CI/CD**: From commit to deployment
-✨ **Well-Tested**: Unit, integration, and performance tests
-✨ **Documentation**: Extensive guides for every use case
+1. **Add more features** - Weather, holidays, events
+2. **Implement A/B testing** - Compare model versions
+3. **Set up alerts** - CloudWatch alarms for errors
+4. **Add Grafana dashboards** - Visualize predictions
+5. **Implement caching** - Redis for frequent predictions
+6. **Add authentication** - API key or OAuth
 
 ---
 
-**Built with attention to production-grade MLOps practices and AWS cloud compatibility.**
-
-Estimated setup time: 10-15 minutes local, 1-2 hours AWS
-Estimated training time: 3-5 minutes (depends on data size)
-Estimated cost: ~$75-95/month on AWS (optimizable)
+**Built with MLOps best practices for production deployment on AWS.**
