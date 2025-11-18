@@ -1,275 +1,164 @@
-# Quick Start Guide - Flight Price Prediction MLOps
+# Quick Start Guide
 
-This guide will get you up and running with the Flight Price Prediction project in 10 minutes.
+Get the Flight Price Prediction project running locally in about 10 minutes.
 
 ## Prerequisites
 
 - Python 3.11+
-- Docker Desktop (for Windows)
+- Docker Desktop
 - 8GB+ RAM available
 
-## Step 1: Clone and Setup (2 minutes)
+## Step 1: Setup Environment
 
 ```bash
-# Navigate to project directory
 cd FlightPricePrediction
 
 # Create virtual environment
 python -m venv venv
-
-# Activate virtual environment (Windows)
-venv\Scripts\activate
+venv\Scripts\activate  # Windows
 
 # Install dependencies
 pip install -r requirements.txt
 ```
 
-## Step 2: Start Services (3 minutes)
+## Step 2: Start Docker Services
 
 ```bash
 # Copy environment template
 copy .env.example .env
 
-# Start Docker services
+# Start services
 cd infra
 docker-compose up -d
 
-# Wait for services to be healthy (check with)
+# Check services are running
 docker-compose ps
 ```
 
-Services will be available at:
-- MLflow UI: http://localhost:5000
+Services available at:
+- MLflow: http://localhost:5000
 - PostgreSQL: localhost:5432
 - Prometheus: http://localhost:9090
 - Grafana: http://localhost:3000 (admin/admin)
 
-## Step 3: Prepare Data (2 minutes)
+## Step 3: Train Model
 
 ```bash
-# Return to project root
-cd ..
+cd ..  # Back to project root
 
-# Prepare datasets
-python -m src.ml.data
+# Option 1: Use DVC pipeline (recommended)
+dvc repro
+
+# Option 2: Run manually
+python -m src.ml.data      # Prepare data
+python -m src.ml.train     # Train model
+python -m src.ml.evaluate  # Evaluate
 ```
 
-This creates train/test splits and saves them to `data/processed/`.
+Check MLflow at http://localhost:5000 to see experiment results.
 
-## Step 4: Train Model (3 minutes)
+## Step 4: Promote Model
 
 ```bash
-# Set MLflow tracking URI
-set MLFLOW_TRACKING_URI=http://localhost:5000
-
-# Train ensemble model
-python -m src.ml.train
-
-# This will:
-# - Train Random Forest, XGBoost, and LightGBM models
-# - Combine them into an ensemble
-# - Log to MLflow
-# - Save model locally
+python scripts/promote_model.py --version 1 --alias production
 ```
 
-Check MLflow UI at http://localhost:5000 to see your experiment!
-
-## Step 5: Start API (1 minute)
+## Step 5: Start API
 
 ```bash
-# Option 1: Local (development)
-uvicorn src.app.api:app --reload --host 0.0.0.0 --port 8000
-
-# Option 2: Docker (production-like)
+# Option 1: Docker (recommended)
 cd infra
 docker-compose up app
+
+# Option 2: Local development
+uvicorn src.app.api:app --reload --host 0.0.0.0 --port 8000
 ```
 
-## Step 6: Test API (1 minute)
+## Step 6: Test API
 
-Open http://localhost:8000/docs for interactive API documentation.
+Open http://localhost:8000/docs for interactive documentation.
 
-Or test with curl:
+Or use curl:
 
 ```bash
-curl -X POST "http://localhost:8000/predict" ^
+curl -X POST http://localhost:8000/predict ^
   -H "Content-Type: application/json" ^
-  -d "{\"airline\": \"SpiceJet\", \"source_city\": \"Delhi\", \"destination_city\": \"Mumbai\", \"departure_time\": \"Evening\", \"arrival_time\": \"Night\", \"stops\": \"zero\", \"class\": \"Economy\", \"duration\": 2.17, \"days_left\": 1}"
+  -d "{\"airline\": \"Vistara\", \"flight\": \"UK-123\", \"source_city\": \"Delhi\", \"departure_time\": \"Morning\", \"stops\": \"zero\", \"arrival_time\": \"Afternoon\", \"destination_city\": \"Mumbai\", \"class\": \"Economy\", \"duration\": 2.5, \"days_left\": 15}"
 ```
 
-## Step 7: Promote Model to Production
+## Verify Setup
 
-```bash
-# Validate model meets thresholds
-python scripts\validate_model.py --version 1
-
-# Promote to production
-python scripts\promote_model.py --version 1 --alias production --reload-app
-```
-
-## Verify Everything Works
-
-1. **Health Check**: http://localhost:8000/health
-2. **Model Info**: http://localhost:8000/model_info
-3. **Metrics**: http://localhost:8000/metrics
-4. **MLflow**: http://localhost:5000
-5. **API Docs**: http://localhost:8000/docs
+- Health Check: http://localhost:8000/health
+- Model Info: http://localhost:8000/model_info
+- Metrics: http://localhost:8000/metrics
+- API Docs: http://localhost:8000/docs
+- MLflow UI: http://localhost:5000
 
 ## Common Commands
 
-### Data Pipeline
+### Training
 ```bash
-# Run full DVC pipeline
-dvc repro
-
-# Prepare data only
-python -m src.ml.data
-
-# Train model
-python -m src.ml.train
-
-# Evaluate model
-python -m src.ml.evaluate
+dvc repro                    # Full pipeline
+python -m src.ml.train       # Train only
+python -m src.ml.evaluate    # Evaluate only
 ```
 
 ### Model Management
 ```bash
-# List model versions
-python scripts\promote_model.py --model-name FlightPricePredictor --list
+python scripts/promote_model.py --model-name FlightPricePredictor --list
+python scripts/validate_model.py --version 1
+python scripts/promote_model.py --version 1 --alias production
+```
 
-# Validate before promotion
-python scripts\validate_model.py --version 1
-
-# Promote to production
-python scripts\promote_model.py --version 1 --alias production
+### Docker
+```bash
+docker-compose up -d         # Start all
+docker-compose down          # Stop all
+docker-compose logs -f app   # View logs
+docker-compose up --build    # Rebuild
 ```
 
 ### Testing
 ```bash
-# Run all tests
 pytest -v
-
-# Run specific tests
-pytest tests/test_api.py -v
-pytest tests/test_model.py -v
-
-# With coverage
 pytest --cov=src --cov-report=html
-```
-
-### Docker Services
-```bash
-# Start all services
-docker-compose up -d
-
-# Stop all services
-docker-compose down
-
-# View logs
-docker-compose logs -f app
-docker-compose logs -f mlflow
-
-# Rebuild after code changes
-docker-compose up --build
-```
-
-### Monitoring
-```bash
-# Monitor data drift (requires predictions in DB)
-python -m src.monitoring.drift_detection --hours 24
-
-# View Grafana dashboards
-# Open http://localhost:3000 (admin/admin)
-
-# View Prometheus metrics
-# Open http://localhost:9090
 ```
 
 ## Troubleshooting
 
-### Docker services won't start
+### Docker won't start
 ```bash
-# Check if ports are already in use
+# Check port conflicts
 netstat -ano | findstr :5000
 netstat -ano | findstr :8000
-netstat -ano | findstr :5432
 
-# Stop and remove all containers
+# Reset containers
 docker-compose down -v
-
-# Restart
 docker-compose up -d
 ```
 
-### Model not loading in API
-```bash
-# Check MLflow is running
-curl http://localhost:5000/health
-
-# Check model is registered
-# Visit http://localhost:5000 and look for "FlightPricePredictor"
-
-# Check API logs
-docker-compose logs app
-```
+### Model not loading
+- Check MLflow is running: http://localhost:5000
+- Check logs: `docker-compose logs app`
 
 ### Import errors
 ```bash
-# Make sure you're in project root and venv is activated
-cd C:\Users\saiga\OneDrive\Documents\Data_SCience\MLOps\FlightPricePrediction
+# Ensure venv is activated
 venv\Scripts\activate
-
-# Reinstall dependencies
 pip install -r requirements.txt
 ```
-
-### Database connection errors
-```bash
-# Check PostgreSQL is running
-docker ps | findstr postgres
-
-# Check database exists
-docker exec -it flightprice-postgres psql -U postgres -c "\l"
-
-# Create tables if missing
-python -m src.database.models
-```
-
-## Next Steps
-
-1. **Explore the API**: Try different flight combinations in the /docs interface
-2. **Check MLflow**: Review experiment runs and model metrics
-3. **Set up monitoring**: Run some predictions and check drift detection
-4. **AWS Deployment**: Follow AWS_SETUP_GUIDE.md for cloud deployment
-5. **Customize models**: Adjust hyperparameters in configs/training.yaml
-
-## Development Workflow
-
-1. Make code changes
-2. Run tests: `pytest -v`
-3. Train new model: `python -m src.ml.train`
-4. Validate: `python scripts\validate_model.py --version <new-version>`
-5. Promote: `python scripts\promote_model.py --version <new-version> --alias production`
-6. Monitor: Check metrics at /metrics and drift reports
-
-## Getting Help
-
-- Check logs: `docker-compose logs -f`
-- Review README.md for detailed documentation
-- Check AWS_SETUP_GUIDE.md for cloud deployment
-- Run tests to verify setup: `pytest -v`
 
 ## Clean Up
 
 ```bash
-# Stop all services
-docker-compose down
-
-# Remove all data (careful!)
-docker-compose down -v
-
-# Deactivate virtual environment
-deactivate
+docker-compose down      # Stop services
+docker-compose down -v   # Remove data too
+deactivate               # Exit venv
 ```
 
-Congratulations! You now have a fully functional MLOps pipeline for flight price prediction running locally. Ready to deploy to AWS? Check out AWS_SETUP_GUIDE.md!
+## Next Steps
+
+1. Try different predictions in the /docs interface
+2. Review experiments in MLflow
+3. Check AWS_SETUP_GUIDE.md for cloud deployment
+4. Adjust hyperparameters in configs/training.yaml
