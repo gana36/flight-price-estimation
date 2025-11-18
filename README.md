@@ -366,17 +366,9 @@ Key variables:
 - `AWS_REGION`: AWS region for S3/ECR/ECS
 - `MODEL_ALIAS`: Model alias to load (default: production)
 
-## License
-
-[Your License Here]
-
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make changes and add tests
 4. Submit a pull request
-
-## Contact
-
-[Your Contact Information]
