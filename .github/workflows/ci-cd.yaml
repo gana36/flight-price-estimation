@@ -1,0 +1,206 @@
+name: CI/CD Pipeline for Flight Price Prediction
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+  ECR_REPO_APP: flightprice-app
+  ECR_REPO_MLFLOW: flightprice-mlflow
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        run: |
+          pytest -v --tb=short
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: reports/
+
+  lint:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install linting tools
+        run: |
+          pip install black ruff isort mypy
+
+      - name: Run black
+        run: black --check src/ tests/
+
+      - name: Run ruff
+        run: ruff check src/ tests/
+
+      - name: Run isort
+        run: isort --check-only src/ tests/
+
+  build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [test, lint]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push App image
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -f docker/Dockerfile.app -t $ECR_REGISTRY/$ECR_REPO_APP:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/$ECR_REPO_APP:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPO_APP:latest
+          docker push $ECR_REGISTRY/$ECR_REPO_APP:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPO_APP:latest
+
+      - name: Build and push MLflow image
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -f docker/Dockerfile.mlflow -t $ECR_REGISTRY/$ECR_REPO_MLFLOW:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/$ECR_REPO_MLFLOW:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPO_MLFLOW:latest
+          docker push $ECR_REGISTRY/$ECR_REPO_MLFLOW:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPO_MLFLOW:latest
+
+  deploy:
+    name: Deploy to AWS ECS
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update ECS task definition - App
+        run: |
+          # Replace placeholders in task definition
+          sed -i "s/ACCOUNT_ID/${{ secrets.AWS_ACCOUNT_ID }}/g" infra/aws/ecs-task-definition-app.json
+          sed -i "s/REGION/${{ env.AWS_REGION }}/g" infra/aws/ecs-task-definition-app.json
+          sed -i "s/:latest/:${{ github.sha }}/g" infra/aws/ecs-task-definition-app.json
+
+          # Register new task definition
+          aws ecs register-task-definition \
+            --cli-input-json file://infra/aws/ecs-task-definition-app.json
+
+      - name: Update ECS service - App
+        run: |
+          aws ecs update-service \
+            --cluster flightprice-cluster \
+            --service flightprice-app-service \
+            --task-definition flightprice-app-task \
+            --force-new-deployment
+
+      - name: Wait for deployment
+        run: |
+          aws ecs wait services-stable \
+            --cluster flightprice-cluster \
+            --services flightprice-app-service
+
+      - name: Deployment status
+        run: echo "✓ Deployment successful"
+
+  train-model:
+    name: Train Model (Manual Trigger)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Pull data with DVC
+        run: |
+          dvc remote modify s3remote --local access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          dvc remote modify s3remote --local secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          dvc pull
+
+      - name: Train model
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+        run: |
+          python -m src.ml.train
+
+      - name: Validate model
+        run: |
+          python scripts/validate_model.py --version latest
+
+      - name: Push model artifacts
+        run: |
+          dvc push

@@ -1,0 +1,73 @@
+# Model hyperparameters for Flight Price Prediction Ensemble
+
+ensemble:
+  strategy: weighted_average  # Options: weighted_average, voting, stacking
+
+  # Model weights (should sum to 1.0)
+  weights:
+    random_forest: 0.35
+    xgboost: 0.40
+    lightgbm: 0.25
+
+models:
+  random_forest:
+    n_estimators: 200
+    max_depth: 15
+    min_samples_split: 5
+    min_samples_leaf: 2
+    max_features: sqrt
+    random_state: 42
+    n_jobs: -1
+    verbose: 0
+
+  xgboost:
+    n_estimators: 200
+    max_depth: 8
+    learning_rate: 0.1
+    subsample: 0.8
+    colsample_bytree: 0.8
+    min_child_weight: 3
+    gamma: 0.1
+    reg_alpha: 0.1
+    reg_lambda: 1.0
+    random_state: 42
+    n_jobs: -1
+    verbosity: 0
+
+  lightgbm:
+    n_estimators: 200
+    max_depth: 10
+    learning_rate: 0.1
+    subsample: 0.8
+    colsample_bytree: 0.8
+    min_child_samples: 20
+    reg_alpha: 0.1
+    reg_lambda: 1.0
+    random_state: 42
+    n_jobs: -1
+    verbose: -1
+
+# Hyperparameter tuning (optional)
+tuning:
+  enabled: false
+  method: random_search  # Options: grid_search, random_search, optuna
+  cv_folds: 3
+  n_iter: 50  # For random_search
+  scoring: neg_mean_squared_error
+
+  # Search space for each model
+  search_space:
+    random_forest:
+      n_estimators: [100, 200, 300]
+      max_depth: [10, 15, 20, 25]
+      min_samples_split: [2, 5, 10]
+
+    xgboost:
+      n_estimators: [100, 200, 300]
+      max_depth: [6, 8, 10]
+      learning_rate: [0.01, 0.05, 0.1, 0.2]
+
+    lightgbm:
+      n_estimators: [100, 200, 300]
+      max_depth: [8, 10, 12]
+      learning_rate: [0.01, 0.05, 0.1, 0.2]

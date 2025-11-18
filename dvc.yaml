@@ -1,0 +1,41 @@
+stages:
+  prepare:
+    cmd: python -m src.ml.data
+    deps:
+      - src/ml/data.py
+      - Clean_Dataset.csv
+    outs:
+      - data/processed/train.parquet
+      - data/processed/test.parquet
+      - data/processed/reference.parquet
+      - data/processed/current.parquet
+    params:
+      - configs/base.yaml:
+          - data
+          - preprocessing
+
+  train:
+    cmd: python -m src.ml.train
+    deps:
+      - src/ml/train.py
+      - data/processed/train.parquet
+      - data/processed/test.parquet
+      - configs/base.yaml
+      - configs/training.yaml
+    outs:
+      - models/latest.joblib
+    params:
+      - configs/training.yaml:
+          - ensemble
+          - models
+
+  evaluate:
+    cmd: python -m src.ml.evaluate
+    deps:
+      - src/ml/evaluate.py
+      - models/latest.joblib
+      - data/processed/test.parquet
+      - configs/base.yaml
+    metrics:
+      - reports/evaluation_metrics.csv:
+          cache: false

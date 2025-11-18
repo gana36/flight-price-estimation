@@ -1,0 +1,81 @@
+{
+  "family": "flightprice-app-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/flightpriceTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "flightprice-app",
+      "image": "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/flightprice-app:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "APP_HOST",
+          "value": "0.0.0.0"
+        },
+        {
+          "name": "APP_PORT",
+          "value": "8000"
+        },
+        {
+          "name": "MODEL_ALIAS",
+          "value": "production"
+        },
+        {
+          "name": "MLFLOW_REGISTERED_MODEL_NAME",
+          "value": "FlightPricePredictor"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:flightprice/database-url"
+        },
+        {
+          "name": "MLFLOW_TRACKING_URI",
+          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:flightprice/mlflow-uri"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/flightprice-app",
+          "awslogs-region": "REGION",
+          "awslogs-stream-prefix": "app"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      },
+      "mountPoints": [
+        {
+          "sourceVolume": "models",
+          "containerPath": "/app/models",
+          "readOnly": false
+        }
+      ]
+    }
+  ],
+  "volumes": [
+    {
+      "name": "models",
+      "efsVolumeConfiguration": {
+        "fileSystemId": "fs-XXXXX",
+        "transitEncryption": "ENABLED"
+      }
+    }
+  ]
+}

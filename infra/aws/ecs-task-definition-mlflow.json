@@ -1,0 +1,65 @@
+{
+  "family": "flightprice-mlflow-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/flightpriceTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "flightprice-mlflow",
+      "image": "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/flightprice-mlflow:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 5000,
+          "protocol": "tcp"
+        }
+      ],
+      "command": [
+        "mlflow",
+        "server",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "5000",
+        "--backend-store-uri",
+        "$(MLFLOW_BACKEND_STORE_URI)",
+        "--default-artifact-root",
+        "$(MLFLOW_DEFAULT_ARTIFACT_ROOT)"
+      ],
+      "environment": [
+        {
+          "name": "AWS_DEFAULT_REGION",
+          "value": "REGION"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "MLFLOW_BACKEND_STORE_URI",
+          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:flightprice/mlflow-backend-uri"
+        },
+        {
+          "name": "MLFLOW_DEFAULT_ARTIFACT_ROOT",
+          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:flightprice/mlflow-artifact-root"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/flightprice-mlflow",
+          "awslogs-region": "REGION",
+          "awslogs-stream-prefix": "mlflow"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      }
+    }
+  ]
+}

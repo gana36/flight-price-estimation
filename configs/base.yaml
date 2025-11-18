@@ -1,0 +1,68 @@
+# Base configuration for Flight Price Prediction MLOps pipeline
+
+data:
+  test_size: 0.2
+  random_state: 42
+  validation_size: 0.1
+
+  # Feature engineering
+  features:
+    categorical:
+      - airline
+      - source_city
+      - destination_city
+      - departure_time
+      - arrival_time
+      - stops
+      - class
+    numerical:
+      - duration
+      - days_left
+
+  # Target variable
+  target: price
+
+training:
+  cv_folds: 5
+  stratified: false  # For regression task
+  shuffle: true
+
+  # Train/test split strategy
+  split_strategy: random  # Options: random, time_based
+
+preprocessing:
+  # Handle missing values
+  fill_missing: median
+
+  # Scaling
+  scale_numerical: true
+  scaler: standard  # Options: standard, minmax, robust
+
+  # Encoding
+  categorical_encoding: onehot  # Options: onehot, label, target
+
+mlflow:
+  experiment_name: flight_price_prediction
+  run_name_prefix: ensemble_model
+
+  # Model registry
+  registered_model_name: FlightPricePredictor
+
+  # Tracking
+  log_artifacts: true
+  log_models: true
+  log_params: true
+  log_metrics: true
+
+evaluation:
+  metrics:
+    - mae
+    - rmse
+    - r2_score
+    - mape
+
+  # Thresholds for model validation
+  thresholds:
+    min_r2: 0.75
+    max_rmse: 5000
+    max_mape: 0.15  # 15%

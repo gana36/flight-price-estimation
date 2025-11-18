@@ -1,0 +1,22 @@
+# Prometheus configuration for Flight Price Prediction API
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'flightprice'
+    env: 'development'
+
+# Scrape configurations
+scrape_configs:
+  # FastAPI application metrics
+  - job_name: 'flightprice-api'
+    static_configs:
+      - targets: ['app:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

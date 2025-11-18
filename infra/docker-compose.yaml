@@ -1,0 +1,137 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for prediction logging
+  postgres:
+    image: postgres:15-alpine
+    container_name: flightprice-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: flightprice
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - flightprice-network
+
+  # MLflow Server
+  mlflow:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.mlflow
+    container_name: flightprice-mlflow
+    ports:
+      - "5000:5000"
+    volumes:
+      - ../mlruns:/mlruns
+      - ../mlflow:/mlflow
+    environment:
+      # Local file-based backend (for development)
+      # For production, use RDS + S3:
+      # MLFLOW_BACKEND_STORE_URI: postgresql://user:pass@rds-host:5432/mlflow
+      # MLFLOW_DEFAULT_ARTIFACT_ROOT: s3://bucket-name/mlflow-artifacts
+      - MLFLOW_BACKEND_STORE_URI=file:///mlruns
+      - MLFLOW_DEFAULT_ARTIFACT_ROOT=file:///mlruns
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri file:///mlruns
+      --default-artifact-root file:///mlruns
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - flightprice-network
+
+  # FastAPI Application
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.app
+    container_name: flightprice-app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../models:/app/models
+      - ../mlruns:/mlruns
+      - ../data:/app/data
+      - ../reports:/app/reports
+    environment:
+      # Database
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/flightprice
+      # MLflow
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_REGISTERED_MODEL_NAME=FlightPricePredictor
+      # API settings
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8000
+      - MODEL_ALIAS=production
+      # AWS (for production)
+      # - AWS_REGION=us-east-1
+      # - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      # - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - flightprice-network
+
+  # Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: flightprice-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - flightprice-network
+
+  # Grafana for dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: flightprice-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - flightprice-network
+
+volumes:
+  postgres_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  flightprice-network:
+    driver: bridge
