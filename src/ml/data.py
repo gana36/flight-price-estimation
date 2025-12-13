@@ -1,7 +1,4 @@
-"""
-Data preparation module for Flight Price Prediction.
-Handles data loading, preprocessing, feature engineering, and train/test split.
-"""
+"""Data preparation for Flight Price Prediction."""
 
 import os
 import pandas as pd
@@ -18,22 +15,17 @@ logger = logging.getLogger(__name__)
 
 
 class FlightDataProcessor:
-    """Process flight data for model training and inference."""
-
     def __init__(self, config_path: str = "configs/base.yaml"):
-        """Initialize data processor with configuration."""
         self.config = self._load_config(config_path)
         self.scaler = None
         self.feature_names = None
         self.label_encoders = {}  # Store encoders for each categorical column
 
     def _load_config(self, config_path: str) -> Dict[str, Any]:
-        """Load configuration from YAML file."""
         with open(config_path, 'r') as f:
             return yaml.safe_load(f)
 
     def load_data(self, data_path: str) -> pd.DataFrame:
-        """Load flight data from CSV file."""
         logger.info(f"Loading data from {data_path}")
 
         if data_path.endswith('.csv'):
@@ -52,7 +44,6 @@ class FlightDataProcessor:
         return df
 
     def engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Create additional features from existing ones."""
         logger.info("Engineering features...")
 
         df = df.copy()
@@ -83,7 +74,6 @@ class FlightDataProcessor:
         return df
 
     def _parse_duration(self, duration_str: str) -> float:
-        """Parse duration string to hours."""
         if pd.isna(duration_str):
             return 0.0
 
@@ -99,16 +89,7 @@ class FlightDataProcessor:
             return 0.0
 
     def preprocess(self, df: pd.DataFrame, fit: bool = True) -> Tuple[np.ndarray, pd.DataFrame]:
-        """
-        Preprocess the data: handle missing values, encode categoricals, scale numericals.
-
-        Args:
-            df: Input dataframe
-            fit: Whether to fit the scaler (True for training, False for inference)
-
-        Returns:
-            Tuple of (features array, target series)
-        """
+        """Handle missing values, encode categoricals, scale numericals."""
         logger.info("Preprocessing data...")
 
         df = df.copy()
@@ -177,12 +158,7 @@ class FlightDataProcessor:
         logger.info(f"Preprocessing complete. Feature shape: {features.shape}")
         return features, target
 
-    def split_data(
-        self,
-        features: np.ndarray,
-        target: pd.Series
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """Split data into train and test sets."""
+    def split_data(self, features: np.ndarray, target: pd.Series) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         test_size = self.config['data']['test_size']
         random_state = self.config['data']['random_state']
 
@@ -201,8 +177,7 @@ class FlightDataProcessor:
 
 
 def prepare_datasets():
-    """Main function to prepare datasets for training."""
-    logger.info("Starting data preparation pipeline...")
+    logger.info("Starting data preparation...")
 
     # Initialize processor
     processor = FlightDataProcessor()
@@ -224,11 +199,12 @@ def prepare_datasets():
     output_dir = Path("data/processed")
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    train_df = pd.DataFrame(X_train)
+    # Use feature names from processor to preserve column names
+    train_df = pd.DataFrame(X_train, columns=processor.feature_names)
     train_df['price'] = y_train.values
     train_df.to_parquet(output_dir / "train.parquet", index=False)
 
-    test_df = pd.DataFrame(X_test)
+    test_df = pd.DataFrame(X_test, columns=processor.feature_names)
     test_df['price'] = y_test.values
     test_df.to_parquet(output_dir / "test.parquet", index=False)
 

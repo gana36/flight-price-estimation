@@ -191,4 +191,3 @@ For a production deployment, consider adding:
 - **VPC Endpoints** - Reduce S3 data transfer costs
 - **Secrets Manager** - Store database credentials securely
 
-See the original AWS_SETUP_GUIDE_FULL.md for complete production setup instructions.
