@@ -1,7 +1,4 @@
-"""
-FastAPI application for Flight Price Prediction.
-Provides REST API endpoints for predictions, monitoring, and model management.
-"""
+"""FastAPI application for Flight Price Prediction."""
 
 import os
 import sys
@@ -61,8 +58,6 @@ current_model_info = {}
 
 
 class FlightFeatures(BaseModel):
-    """Input features for flight price prediction."""
-
     airline: str = Field(..., description="Airline name")
     source_city: str = Field(..., description="Source city")
     destination_city: str = Field(..., description="Destination city")
@@ -91,8 +86,6 @@ class FlightFeatures(BaseModel):
 
 
 class PredictionResponse(BaseModel):
-    """Response model for predictions."""
-
     predicted_price: float
     model_name: str
     model_version: str
@@ -101,8 +94,6 @@ class PredictionResponse(BaseModel):
 
 
 class ModelInfoResponse(BaseModel):
-    """Response model for model information."""
-
     model_name: str
     model_version: Optional[str]
     model_alias: Optional[str]
@@ -111,16 +102,7 @@ class ModelInfoResponse(BaseModel):
 
 
 def load_model_from_mlflow(alias: str = None, version: str = None):
-    """
-    Load model from MLflow registry.
-
-    Args:
-        alias: Model alias (e.g., 'production', 'staging')
-        version: Specific model version
-
-    Returns:
-        Loaded model and metadata
-    """
+    """Load model from MLflow registry by alias or version."""
     mlflow_uri = os.getenv('MLFLOW_TRACKING_URI', 'http://localhost:5000')
     mlflow.set_tracking_uri(mlflow_uri)
 
@@ -190,7 +172,7 @@ def load_model_local():
 
 
 def initialize_model():
-    """Initialize model on startup."""
+    """Load model on startup."""
     global current_model, current_model_info
 
     try:
@@ -218,7 +200,6 @@ def initialize_model():
 
 @app.on_event("startup")
 async def startup_event():
-    """Run initialization on startup."""
     logger.info("Starting Flight Price Prediction API...")
     initialize_model()
     logger.info("API startup complete")
@@ -226,7 +207,6 @@ async def startup_event():
 
 @app.get("/health", status_code=status.HTTP_200_OK)
 async def health_check():
-    """Health check endpoint."""
     REQUEST_COUNT.labels(method='GET', endpoint='/health', status='200').inc()
 
     return {
@@ -238,13 +218,11 @@ async def health_check():
 
 @app.get("/metrics")
 async def metrics():
-    """Prometheus metrics endpoint."""
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 @app.get("/model_info", response_model=ModelInfoResponse)
 async def get_model_info():
-    """Get current model information."""
     REQUEST_COUNT.labels(method='GET', endpoint='/model_info', status='200').inc()
 
     if not current_model:
@@ -255,13 +233,7 @@ async def get_model_info():
 
 @app.post("/reload")
 async def reload_model(alias: str = None, version: str = None):
-    """
-    Reload model without restarting the service (zero-downtime update).
-
-    Args:
-        alias: Model alias to load (e.g., 'production')
-        version: Specific version to load
-    """
+    """Reload model without restarting the service."""
     global current_model, current_model_info
 
     try:
@@ -299,15 +271,7 @@ async def reload_model(alias: str = None, version: str = None):
 
 @app.post("/predict", response_model=PredictionResponse)
 async def predict(features: FlightFeatures):
-    """
-    Predict flight price based on input features.
-
-    Args:
-        features: Flight features for prediction
-
-    Returns:
-        Predicted price and metadata
-    """
+    """Predict flight price from input features."""
     start_time = time.time()
 
     if not current_model:
@@ -316,20 +280,10 @@ async def predict(features: FlightFeatures):
         raise HTTPException(status_code=503, detail="Model not loaded")
 
     try:
-        # Convert features to format expected by model
-        # This is simplified - you'll need to match your preprocessing pipeline
         feature_dict = features.dict(by_alias=True)
 
-        # For now, we'll assume the model expects preprocessed features
-        # In production, you'd apply the same preprocessing as training
-        # TODO: Integrate with data preprocessing pipeline
-
-        # Make prediction (placeholder - needs actual feature engineering)
-        # predicted_price = current_model.predict(processed_features)[0]
-
-        # Temporary: return a mock prediction
-        # Replace this with actual model inference
-        predicted_price = 5000.0  # Placeholder
+        # TODO: integrate actual preprocessing pipeline
+        predicted_price = 5000.0
 
         # Calculate latency
         latency_ms = (time.time() - start_time) * 1000
@@ -373,7 +327,6 @@ async def predict(features: FlightFeatures):
 
 @app.get("/")
 async def root():
-    """Root endpoint with API information."""
     return {
         "message": "Flight Price Prediction API",
         "version": os.getenv('API_VERSION', '1.0.0'),
