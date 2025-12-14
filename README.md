@@ -240,15 +240,6 @@ GitHub Actions workflow (`.github/workflows/ci-cd.yaml`):
 3. **Build** - Docker image to ECR
 4. **Deploy** - Update ECS service
 
-## Cost Estimates (AWS)
-
-| Service | Monthly Cost |
-|---------|-------------|
-| ECS Fargate (0.5 vCPU, 1GB) | ~$15 |
-| ECR Storage | ~$1 |
-| S3 Storage | ~$1 |
-| CloudWatch Logs | ~$1 |
-| **Total** | **~$18/month** |
 
 ## Troubleshooting
 
